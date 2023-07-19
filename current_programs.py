@@ -98,50 +98,54 @@ class Program:
             "rerun": self.rerun,
         }
 
-def get_program_channel(channel):
+def get_program(channel):
     url = f"https://dinamics.ccma.cat/wsarafem/arafem/%20/{channel}/profile/noimage/geo/cat"
-    
-    channel = requests.get(url, headers=headers).json()["canal"]
-    if channel["ara_fem"] == "" or channel["despres_fem"] == "":
-        return
-    ara_fem = channel["ara_fem"]
+
+    response = requests.get(url, headers=headers).json()
+    ara_fem = response["canal"]["ara_fem"]
+
+    if not ara_fem:
+        return None
     program = Program(
-        program_code = int(ara_fem["codi_programa"]),
-        program_title= ara_fem["titol_programa"],
-        chapter = int(ara_fem["capitol"]),
-        synopsis = ara_fem["sinopsi"],
-        start_time = datetime.fromisoformat(ara_fem["start_time"]),
-        end_time = datetime.fromisoformat(ara_fem["end_time"]),
-        duration = datetime.strptime(ara_fem["durada"], "%H:%M:%S").time(),
-        target = ara_fem["target"],
-        highlighted_text = ara_fem["destacat_text"],
-        highlighted_image = ara_fem["destacat_imatge"],
-        hashtag = ara_fem["hashtag"],
-        audio_description = ara_fem["audio_descripcio"],
-        catalan_subtitles = ara_fem["subtitulat_catala"],
-        vo_subtitles = ara_fem["subtitulat_vo"],
-        rerun = ara_fem["reemissio"],
+        program_code=int(ara_fem["codi_programa"]),
+        program_title=ara_fem["titol_programa"],
+        chapter=int(ara_fem["capitol"]),
+        synopsis=ara_fem["sinopsi"],
+        start_time=datetime.fromisoformat(ara_fem["start_time"]),
+        end_time=datetime.fromisoformat(ara_fem["end_time"]),
+        duration=timedelta(hours=int(ara_fem["durada"].split(':')[0]),
+                           minutes=int(ara_fem["durada"].split(':')[1]),
+                           seconds=int(ara_fem["durada"].split(':')[2])),
+        target=ara_fem["target"],
+        highlighted_text=ara_fem["destacat_text"],
+        highlighted_image=ara_fem["destacat_imatge"],
+        hashtag=ara_fem["hashtag"],
+        audio_description=ara_fem["audio_descripcio"],
+        catalan_subtitles=ara_fem["subtitulat_catala"],
+        vo_subtitles=ara_fem["subtitulat_vo"],
+        rerun=ara_fem["reemissio"],
     )
     return program
 
 def get_current_programs(tv=True, radio=True, channels=channels_tv + channels_radio):
-    # Establir el que vol cercar (tv, radio o tot)
-    if tv == True and radio == True:
+    data = {}
+
+    if tv and radio:
         tv_radio = ""
-    elif tv == True and radio == False:
+    elif tv and not radio:
         tv_radio = "tv"
-    elif tv == False and radio == True:
+    elif radio and not tv:
         tv_radio = "radio"
     
-    # Establir si vol alguns canals en especific
-    if sorted(channels) == sorted(channels_tv + channels_radio):
-        data = {}
-        for channel in channels:
-            data[channel] = {}
-            data_program = get_program_channel(channel)
-            if data_program == None:
-                continue
-            data[channel] = data_program.dict
-        return(data)
+    for channel in channels:
+        if channel in channels_tv and not tv:
+            continue
+        if channel in channels_radio and not radio:
+            continue
+        program = get_program(channel)
+        if program is not None:
+            data[channel] = program.dict
+    
+    return data
 
-#print(json.dumps(get_current_programs(), default=str))
+print(json.dumps(get_current_programs(), default=str))
