@@ -74,7 +74,7 @@ class Program:
             "rerun": self.rerun,
         }
 
-def get_program(channel):
+def get_program(channel, now_later):
     url = f"https://dinamics.ccma.cat/wsarafem/arafem/%20/{channel}/profile/noimage/geo/cat"
 
     response = requests.get(url, headers=headers)
@@ -83,32 +83,32 @@ def get_program(channel):
         return None
     response = response.json()
 
-    ara_fem = response["canal"]["ara_fem"]
+    program_data = response["canal"][now_later]
 
-    if not ara_fem:
+    if not program_data:
         return None
     program = Program(
-        program_code=int(ara_fem["codi_programa"]),
-        program_title=ara_fem["titol_programa"],
-        chapter=int(ara_fem["capitol"]),
-        synopsis=ara_fem["sinopsi"],
-        start_time=datetime.fromisoformat(ara_fem["start_time"]),
-        end_time=datetime.fromisoformat(ara_fem["end_time"]),
-        duration=timedelta(hours=int(ara_fem["durada"].split(':')[0]),
-                           minutes=int(ara_fem["durada"].split(':')[1]),
-                           seconds=int(ara_fem["durada"].split(':')[2])),
-        target=ara_fem["target"],
-        highlighted_text=ara_fem["destacat_text"],
-        highlighted_image=ara_fem["destacat_imatge"],
-        hashtag=ara_fem["hashtag"],
-        audio_description=ara_fem["audio_descripcio"],
-        catalan_subtitles=ara_fem["subtitulat_catala"],
-        vo_subtitles=ara_fem["subtitulat_vo"],
-        rerun=ara_fem["reemissio"],
+        program_code=int(program_data["codi_programa"]),
+        program_title=program_data["titol_programa"],
+        chapter=int(program_data["capitol"]),
+        synopsis=program_data["sinopsi"],
+        start_time=datetime.fromisoformat(program_data["start_time"]),
+        end_time=datetime.fromisoformat(program_data["end_time"]),
+        duration=timedelta(hours=int(program_data["durada"].split(':')[0]),
+                           minutes=int(program_data["durada"].split(':')[1]),
+                           seconds=int(program_data["durada"].split(':')[2])),
+        target=program_data["target"],
+        highlighted_text=program_data["destacat_text"],
+        highlighted_image=program_data["destacat_imatge"],
+        hashtag=program_data["hashtag"],
+        audio_description=True if program_data["audio_descripcio"] == "yes" else False,
+        catalan_subtitles=True if program_data["subtitulat_catala"] == "yes" else False,
+        vo_subtitles=True if program_data["subtitulat_vo"] == "yes" else False,
+        rerun=True if program_data["reemissio"] == "yes" else False,
     )
     return program
 
-def get_current_programs(tv=True, radio=True, channels=channels_tv + channels_radio):
+def get_current_programs(tv=True, radio=True, channels=channels_tv + channels_radio, now=True, later=False):
     data = {}
 
     if tv and radio:
@@ -118,17 +118,29 @@ def get_current_programs(tv=True, radio=True, channels=channels_tv + channels_ra
     elif radio and not tv:
         tv_radio = "radio"
     
+    now_later = []
+    now_later_out = {"ara_fem": "now", "despres_fem": "later"}
+    if now and later:
+        now_later = ["ara_fem", "despres_fem"]
+    elif not now and later:
+        now_later = ["despres_fem"]
+    elif not later and now:
+        now_later = ["ara_fem"]
+
     for channel in channels:
         if channel in channels_tv and not tv:
             continue
         if channel in channels_radio and not radio:
             continue
-        program = get_program(channel)
-        if program is not None:
-            data[channel] = program.dict
-        else:
-            data[channel] = {}
+
+        data[channel] = {}
+        for anytime in now_later:
+            program = get_program(channel, anytime)
+            if program is not None:
+                data[channel][now_later_out[anytime]] = program.dict
+            else:
+                data[channel][now_later_out[anytime]] = {}
     
     return data
 
-#print(json.dumps(get_current_programs(channels=["aa", "tv3"]), default=str))
+print(json.dumps(get_current_programs(now=True, later=True), default=str))
