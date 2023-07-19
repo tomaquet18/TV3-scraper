@@ -21,30 +21,6 @@ channels_radio = [
     "ic",
 ]
 
-
-'''
-Channels
-
-tv3
-324
-sx3
-c33
-esport3
-
-URLS
-
-tv: https://dinamics.ccma.cat/wsarafem/arafem/tv/profile/noimage/geo/cat
-radio: https://dinamics.ccma.cat/wsarafem/arafem/radio/profile/noimage/geo/cat
-tv i radio: https://dinamics.ccma.cat/wsarafem/arafem/tv/profile/noimage/geo/cat
-canal especific: https://dinamics.ccma.cat/wsarafem/arafem/tv/tv3/profile/noimage/geo/cat
-'''
-
-'''
-Filtrar els programes a una hora actual:
-https://dinamics.ccma.cat/wsarafem/arafem/radio/tv3/202307170803/geo/cat
-'''
-
-
 class Program:
     def __init__(
         self,
@@ -101,7 +77,12 @@ class Program:
 def get_program(channel):
     url = f"https://dinamics.ccma.cat/wsarafem/arafem/%20/{channel}/profile/noimage/geo/cat"
 
-    response = requests.get(url, headers=headers).json()
+    response = requests.get(url, headers=headers)
+
+    if not response.status_code == 200:
+        return None
+    response = response.json()
+
     ara_fem = response["canal"]["ara_fem"]
 
     if not ara_fem:
@@ -145,7 +126,9 @@ def get_current_programs(tv=True, radio=True, channels=channels_tv + channels_ra
         program = get_program(channel)
         if program is not None:
             data[channel] = program.dict
+        else:
+            data[channel] = {}
     
     return data
 
-print(json.dumps(get_current_programs(), default=str))
+#print(json.dumps(get_current_programs(channels=["aa", "tv3"]), default=str))
